@@ -1,0 +1,81 @@
+###################################################
+# ~~~ Author's Notes ~~~                          #
+# Author:   Nanthini Muniapan                     #
+# Email:    nanthini_muniapan@astro.com.my         #
+# Project:  DevOps                               #
+# Date of Created:   30-Aug-2022                 #
+###################################################
+
+pipelines: 
+  custom:  
+    (DEPLOY)Terraform Infrastructure Deployment:
+        - variables:
+          - name: environment
+            default: dev
+            allowed-values:
+            - prod
+            - dev   
+        - step: 
+            name: 'Compliance Check'
+            image:
+              name: bridgecrew/checkov:latest
+            script:
+              - cd terraform
+              - checkov -d .
+        - step:
+            name: 'Terraform Plan'
+            image:
+              name: hashicorp/terraform:latest
+            script:
+              - mkdir -p ~/.aws
+              - echo -e "[default]\naws_access_key_id = $AWS_ACCESS_KEY\naws_secret_access_key = $AWS_SECRET_KEY" > ~/.aws/credentials
+              - export TF_key=terraform/iac-demo
+              - export TF_bucket=usm-knowledge-sharing
+              - cd terraform
+              - terraform init -backend-config="bucket=$TF_bucket" -backend-config="key=$TF_key/$environment.tfstate" #-backend-config="profile=$AWS_DEFAULT_PROFILE"
+              - terraform plan -var-file=env/$environment.tfvar
+        - step:
+            name: 'Terraform Apply'
+            image:
+              name: hashicorp/terraform:latest
+            trigger: manual
+            script:
+              - mkdir -p ~/.aws
+              - echo -e "[default]\naws_access_key_id = $AWS_ACCESS_KEY\naws_secret_access_key = $AWS_SECRET_KEY" > ~/.aws/credentials
+              - export TF_key=terraform/iac-demo
+              - export TF_bucket=usm-knowledge-sharing
+              - cd terraform
+              - terraform init -backend-config="bucket=$TF_bucket" -backend-config="key=$TF_key/$environment.tfstate" #-backend-config="profile=$AWS_DEFAULT_PROFILE"
+              - terraform apply --auto-approve -var-file=env/$environment.tfvar
+    (DESTROY)Terraform Infrastructure Destroy:
+        - variables:
+          - name: environment
+            default: dev
+            allowed-values:
+            - prod
+            - dev
+        - step:
+            name: 'Terraform Destroy Plan'
+            image:
+              name: hashicorp/terraform:latest
+            script:
+              - mkdir -p ~/.aws
+              - echo -e "[default]\naws_access_key_id = $AWS_ACCESS_KEY\naws_secret_access_key = $AWS_SECRET_KEY" > ~/.aws/credentials
+              - export TF_key=terraform/iac-demo
+              - export TF_bucket=usm-knowledge-sharing
+              - cd terraform
+              - terraform init -backend-config="bucket=$TF_bucket" -backend-config="key=$TF_key/$environment.tfstate" #-backend-config="profile=$AWS_DEFAULT_PROFILE"
+              - terraform plan -destroy -var-file=env/$environment.tfvar
+        - step:
+            name: 'Terraform Destroy Apply'
+            image:
+              name: hashicorp/terraform:latest
+            trigger: manual
+            script:
+              - mkdir -p ~/.aws
+              - echo -e "[default]\naws_access_key_id = $AWS_ACCESS_KEY\naws_secret_access_key = $AWS_SECRET_KEY" > ~/.aws/credentials
+              - export TF_key=terraform/iac-demo
+              - export TF_bucket=usm-knowledge-sharing
+              - cd terraform
+              - terraform init -backend-config="bucket=$TF_bucket" -backend-config="key=$TF_key/$environment.tfstate" #-backend-config="profile=$AWS_DEFAULT_PROFILE"
+              - terraform destroy --auto-approve -var-file=env/$environment.tfvar
